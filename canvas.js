@@ -5,6 +5,7 @@ var unselectedColorBorder = "2px black solid";
 
 document.addEventListener("DOMContentLoaded",()=>{
 	var canvas = document.getElementsByClassName("canvas")[0];
+	var toolbar = document.getElementsByClassName("toolbar")[0];
 	var MouseListener = (e)=>{
 		e.preventDefault();
 		if (mouseState>=0) {
@@ -40,6 +41,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 			var row = document.createElement("tr");
 			for (var j=0;j<columns;j++) {
 				var col = document.createElement("th");
+				col.style.background="white";
 				row.appendChild(col);
 			}
 			table.appendChild(row);
@@ -71,11 +73,48 @@ document.addEventListener("DOMContentLoaded",()=>{
 				e.target.style.border=selectedColorBorder;
 				selectedColor = e.target.style.background;
 			})
-			canvas.appendChild(dot);
+			toolbar.appendChild(dot);
 		}		
+		var customColorContainer = document.createElement("div");
+		customColorContainer.classList.add("toolbar")
+		var customColorToolbar=false;
+		var dot = document.createElement("img")
+		dot.classList.add("dot")
+		dot.src="colorwheel.png"
+		customColorContainer.append(dot);
+		toolbar.appendChild(customColorContainer);
+		customColorContainer.addEventListener("click",(e)=>{
+			if (customColorToolbar) {
+				var otherDots = document.getElementsByClassName("dot");
+				for (var i=0;i<otherDots.length;i++) {
+					var dot2 = otherDots[i];
+					dot2.style.border=unselectedColorBorder;
+				}
+				dot.style.border=selectedColorBorder;
+			} else {
+				var customColorInput = document.createElement("input");
+				customColorInput.type="color"
+				customColorInput.value="#222222"
+				customColorInput.classList.add("customColor")
+				customColorContainer.appendChild(customColorInput);
+				customColorInput.addEventListener("change",(e)=>{
+					dot.style.background=e.target.value
+					selectedColor=e.target.value
+				})
+				dot.src="transparent.png";
+				dot.style.background=customColorInput.value;
+				customColorToolbar=true;
+			}
+		})
 	}
 	
-	generateTable(20,20);
+	generateTable(30,30);
 	canvas.appendChild(document.createElement("br"))
 	generateColors(false);
+	
+	document.addEventListener("scroll",()=>{
+		toolbar.style.position="absolute";
+		toolbar.style.left=window.scrollX+"px";
+		toolbar.style.bottom=-window.scrollY+"px";
+	})
 })
