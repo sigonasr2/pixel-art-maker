@@ -1,0 +1,20 @@
+table,td,th{
+	border:1px gray dashed;
+	border-spacing:0px;
+	gap:0px;
+}
+th{
+	min-width:16px;
+	min-height:16px;
+	width:16px;
+	height:16px;
+}
+.dot{
+	height: 25px;
+	width: 25px;
+	background-color: #bbb;
+	border-radius: 50%;
+	display: inline-block;
+	border:2px black solid;
+	margin-left:1px;
+}
