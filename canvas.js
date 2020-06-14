@@ -8,6 +8,21 @@ var customColorToolbar=false;
 
 
 document.addEventListener("DOMContentLoaded",()=>{
+	
+	class Coordinate{
+		constructor(box) {
+			var idParse=box.id.split("_");
+			this.x = idParse[1];
+			this.y = idParse[2];
+		}
+	}
+	class PixelCoordinate extends Coordinate{
+		constructor(x,y) {
+			this.x = x;
+			this.y = y;
+		}
+	}
+	
 	function insertAfter(newNode, existingNode) {
     existingNode.parentNode.insertBefore(newNode, existingNode.nextSibling);
 	}
@@ -37,6 +52,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 	var MouseStateUp = (e)=>{
 		e.preventDefault();
 		mouseState = -1;
+		toolbar.style.visibility = "visible";
 	}
 	var MouseStateDown = (e)=>{
 		e.preventDefault();
@@ -48,6 +64,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 				e.target.style.background="white";
 			}
 		}
+		toolbar.style.visibility = "hidden";
 	}
 	
 	var colorPixelBasedOnID = (x,y,color)=>{
@@ -57,6 +74,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 	
 	var generateTable = (columns,rows)=>{
 		var table = document.createElement("table");
+		table.style.border="1px gray dashed";
 		for (var i=0;i<rows;i++) {
 			var row = document.createElement("tr");
 			for (var j=0;j<columns;j++) {
@@ -147,6 +165,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 				for (var i=0;i<COLS;i++){
 					var col = document.createElement("th");
 					col.style.background="white";
+					col.style.border=document.querySelector("table").style.border;
 					col.id="pos_"+i+"_"+(Number(ROWS)+Number(newcells));
 					newrow.appendChild(col);
 				}
@@ -173,6 +192,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 					var row = table.getElementsByTagName("tr")[i]
 					var col = document.createElement("th");
 					col.style.background="white";
+					col.style.border=document.querySelector("table").style.border;
 					col.id="pos_"+COLS+"_"+i;
 					row.appendChild(col);
 				}
@@ -288,6 +308,31 @@ document.addEventListener("DOMContentLoaded",()=>{
 		saveButton.addEventListener("click",SaveData)
 		toolbar.appendChild(loadButton);
 		toolbar.appendChild(saveButton);
+		var toggleGridButton = document.createElement("img");
+		toggleGridButton.src = "gridtoggle.png";
+		toggleGridButton.classList.add("tinybutton");
+		toggleGridButton.addEventListener("click",()=>{
+			var elements = document.querySelectorAll("table,tr,th")
+			if (document.querySelector("body > div.container > div > table").style.border.includes("1px")) {
+				for (var item of elements) {
+					item.style.border = "0px";
+				}
+			} else {
+				for (var item of elements) {
+					item.style.border = "1px gray dashed";
+				}
+			}
+		})
+		toolbar.appendChild(toggleGridButton);
+	}
+	
+	//Returns a coordinate class.
+	var getCoordinates = (box)=>{
+		return new Coordinate(box);
+	}
+	
+	var floodFill = (startx,starty)=>{
+		
 	}
 	
 	generateTable(ROWS,COLS);

@@ -1,4 +1,4 @@
-table,td,th{
+table,tr,th{
 	border:1px gray dashed;
 	border-spacing:0px;
 	gap:0px;
@@ -11,6 +11,9 @@ th{
 }
 .container{
 	text-align: center;
+}
+.toolbar{
+	width: 100%;
 }
 .canvas{
 	display:inline-block;
@@ -47,6 +50,18 @@ th{
 .dot{
 	height: 25px;
 	width: 25px;
+	background-color: #bbb;
+	border-radius: 50%;
+	display: inline-block;
+	border:2px black solid;
+	margin-left:1px;
+}
+.tinybutton{
+	margin-top:-24px;
+	position:relative;
+	top: 6px;
+	height: 24px;
+	width: 24px;
 	background-color: #bbb;
 	border-radius: 50%;
 	display: inline-block;
