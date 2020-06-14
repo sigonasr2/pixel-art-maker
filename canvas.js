@@ -13,6 +13,7 @@ STEPTYPE:
 ADD //Pixel was added. Remove all pixels in this object.
 	//Each pixel will have an old_pos_X_Y indicating their old color. Do the reverse to undo. The pixel list itself will be in "PIXELS": X,Y,X2,Y2,X3,Y3, etc.
 FILL //Fill was done. A color is provided by "backcolor" and a pixel containing the click and source color. To undo it, fill with the backcolor instead of the source color.
+RESIZE //A resize operation was done. All old removed pixels are stored for shrinks. No pixels are stored for expansions.
 */
 
 var pixelStates = []; //Last 20 pixel states stored here.
@@ -23,6 +24,8 @@ var lastDrawPoint = null;
 document.addEventListener("DOMContentLoaded",()=>{
 	var undoButton = document.createElement("button")
 	var redoButton = document.createElement("button")
+	var rowsControl = document.createElement("input")
+	var colsControl = document.createElement("input")
 	
 	class Coordinate{
 		constructor(box) {
@@ -64,7 +67,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 	function Undo() {
 		//Execute the reverse.
 		var state = pixelStates[--currentPixelState];
-		console.log("Undo "+currentPixelState)
+		//console.log("Undo "+currentPixelState)
 		//console.log("Undo "+JSON.stringify(state))
 		switch (state["STEPTYPE"]) {
 			case "ADD":{
@@ -81,6 +84,68 @@ document.addEventListener("DOMContentLoaded",()=>{
 			case "FILL":{
 				floodFill(state["PIXELX"],state["PIXELY"],document.getElementById("pos_"+state["PIXELX"]+"_"+state["PIXELY"]).style.background,state["backcolor"])
 			}break;
+			case "RESIZEROWS":{
+				//If the old size was smaller, restore the data in PIXELS.
+				//If the old size was larger, just remove rows.
+				//Make sure to update the control.
+				var table = document.getElementsByTagName("table")[0];
+				rowsControl.value = state["oldsize"]
+				if (state["newsize"]>state["oldsize"]) {
+					while (table.getElementsByTagName("tr").length>rowsControl.value) {
+						var lastrow = table.getElementsByTagName("tr")[table.getElementsByTagName("tr").length-1]
+						lastrow.remove();
+					}
+				} else {
+					//We have to add back in rows. As we do, restore the cell data for them.
+					var newcells = 0;
+					while (table.getElementsByTagName("tr").length<rowsControl.value) {
+						//CREATE X amount of new rows.
+						var newrow = document.createElement("tr");
+						for (var i=0;i<COLS;i++){
+							var col = document.createElement("th");
+							col.style.border=document.querySelector("table").style.border;
+							col.id="pos_"+i+"_"+(Number(ROWS)+Number(newcells));
+							col.style.background=state[col.id];
+							newrow.appendChild(col);
+						}
+						newcells++;
+						table.appendChild(newrow);
+					}
+				}
+				ROWS = rowsControl.value;
+			}break;
+			case "RESIZECOLS":{
+				//If the old size was smaller, restore the data in PIXELS.
+				//If the old size was larger, just remove cols.
+				//Make sure to update the control.
+				var table = document.getElementsByTagName("table")[0];
+				colsControl.value = state["oldsize"]
+				if (state["newsize"]>state["oldsize"]) {
+					while (colsControl.value<COLS) {
+						for (var i=0;i<table.getElementsByTagName("tr").length;i++) {
+							var row = table.getElementsByTagName("tr")[i];
+							var col = row.getElementsByTagName("th")[row.getElementsByTagName("th").length-1]
+							var coords = getCoordinates(col)
+							col.remove();
+						}
+						COLS--;
+					}
+				} else {
+					//We have to add back in cols. As we do, restore the cell data for them.
+					while (colsControl.value>COLS) {
+						for (var i=0;i<table.getElementsByTagName("tr").length;i++) {
+							var row = table.getElementsByTagName("tr")[i]
+							var col = document.createElement("th");
+							col.id="pos_"+COLS+"_"+i;
+							col.style.background=state[col.id];
+							col.style.border=document.querySelector("table").style.border;
+							row.appendChild(col);
+						}
+						COLS++;
+					}
+				}
+				COLS = colsControl.value;
+			}break;
 		}
 		redoButton.disabled = false;
 		undoButton.disabled = true;
@@ -92,7 +157,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 	
 	function Redo() {
 		//Execute the re-reverse.
-		console.log("Redo "+currentPixelState)
+		//console.log("Redo "+currentPixelState)
 		var state = pixelStates[currentPixelState++];
 		//console.log("Redo "+JSON.stringify(state))
 		switch (state["STEPTYPE"]) {
@@ -109,6 +174,69 @@ document.addEventListener("DOMContentLoaded",()=>{
 			}break;
 			case "FILL":{
 				floodFill(state["PIXELX"],state["PIXELY"],document.getElementById("pos_"+state["PIXELX"]+"_"+state["PIXELY"]).style.background,state["newcolor"])
+			}break;
+			case "RESIZEROWS":{
+				//If the old size was smaller, restore the data in PIXELS.
+				//If the old size was larger, just remove rows.
+				//Make sure to update the control.
+				var table = document.getElementsByTagName("table")[0];
+				rowsControl.value = state["newsize"]
+				if (state["newsize"]<state["oldsize"]) {
+					while (table.getElementsByTagName("tr").length>rowsControl.value) {
+						var lastrow = table.getElementsByTagName("tr")[table.getElementsByTagName("tr").length-1]
+						lastrow.remove();
+					}
+				} else {
+					//We have to add back in rows. As we do, restore the cell data for them.
+					var newcells = 0;
+					while (table.getElementsByTagName("tr").length<rowsControl.value) {
+						//CREATE X amount of new rows.
+						var newrow = document.createElement("tr");
+						for (var i=0;i<COLS;i++){
+							var col = document.createElement("th");
+							col.style.border=document.querySelector("table").style.border;
+							col.id="pos_"+i+"_"+(Number(ROWS)+Number(newcells));
+							col.style.background="white";
+							newrow.appendChild(col);
+						}
+						newcells++;
+						table.appendChild(newrow);
+					}
+				}
+				ROWS = rowsControl.value;
+			}break;
+			case "RESIZECOLS":{
+				//If the old size was smaller, restore the data in PIXELS.
+				//If the old size was larger, just remove rows.
+				//Make sure to update the control.
+				var table = document.getElementsByTagName("table")[0];
+				colsControl.value = state["newsize"]
+				if (state["newsize"]<state["oldsize"]) {
+					while (colsControl.value<COLS) {
+						for (var i=0;i<table.getElementsByTagName("tr").length;i++) {
+							var row = table.getElementsByTagName("tr")[i];
+							var col = row.getElementsByTagName("th")[row.getElementsByTagName("th").length-1]
+							var coords = getCoordinates(col)
+							col.remove();
+						}
+						COLS--;
+					}
+				} else {
+					//We have to add back in cols. As we do, fill in white for them.
+					var newcells = 0;
+					while (colsControl.value>COLS) {
+						for (var i=0;i<table.getElementsByTagName("tr").length;i++) {
+							var row = table.getElementsByTagName("tr")[i]
+							var col = document.createElement("th");
+							col.id="pos_"+COLS+"_"+i;
+							col.style.background="white";
+							col.style.border=document.querySelector("table").style.border;
+							row.appendChild(col);
+						}
+						COLS++;
+					}
+				}
+				COLS = colsControl.value;
 			}break;
 		}
 		redoButton.disabled = true;
@@ -171,13 +299,9 @@ document.addEventListener("DOMContentLoaded",()=>{
 							var Yincr = Math.sign(slopeY)*1;
 							var currX = Number(lastDrawPoint.x)
 							var currY = Number(lastDrawPoint.y)
-							var iterations=0;
 							while (Math.floor(currY)!==Math.floor(mycoords.y)) {
 								currY+=Yincr;
 								currX+=Xincr;
-								if (iterations>=1) {
-									console.log("X:"+currX+","+currY+"/"+lastDrawPoint.x+","+lastDrawPoint.y+"/"+mycoords.x+","+mycoords.y)
-								}
 								var target = document.getElementById("pos_"+Math.ceil(currX)+"_"+currY);
 								if (!(target.id in changedPixels)) {
 									if ("PIXELS" in changedPixels) {
@@ -199,20 +323,15 @@ document.addEventListener("DOMContentLoaded",()=>{
 									new Error("Rip")
 									break;
 								}
-								iterations++;
 							}
 						} else {
 							var Xincr = Math.sign(slopeX)*1;
 							var Yincr = slopeY/Math.abs(slopeX);
 							var currX = Number(lastDrawPoint.x)
 							var currY = Number(lastDrawPoint.y)
-							var iterations=0;
 							while (Math.floor(currX)!==Math.floor(mycoords.x)) {
 								currY+=Yincr;
 								currX+=Xincr;
-								if (iterations>=1) {
-									console.log("Y:"+currX+","+currY+"/"+lastDrawPoint.x+","+lastDrawPoint.y+"/"+mycoords.x+","+mycoords.y)
-								}
 								var target = document.getElementById("pos_"+currX+"_"+Math.ceil(currY));
 								if (!(target.id in changedPixels)) {
 									if ("PIXELS" in changedPixels) {
@@ -230,7 +349,6 @@ document.addEventListener("DOMContentLoaded",()=>{
 									}
 									changedPixels["STEPTYPE"]="ADD"
 								}
-								iterations++;
 								if (currX>COLS || currY>ROWS || currX<0 || currY<0) {
 									new Error("Rip")
 									break;
@@ -262,30 +380,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 		}
 		toolbar.style.visibility = "visible";
 		//console.log(changedPixels);
-		if ("STEPTYPE" in changedPixels) {
-			//Add changedPixels to the current pixelState.
-			if (currentPixelState!==-1 && currentPixelState!==pixelStates.length) {
-				//Delete everything after this.
-				if (currentPixelState===0) {
-					pixelStates = [];
-				} else {
-					pixelStates = pixelStates.slice(0,currentPixelState+1)
-				}
-				redoButton.disabled = true;
-			}
-			
-			if (pixelStates.length<20) {
-				pixelStates.push(changedPixels);
-				undoButton.disabled = false;
-				redoButton.disabled = true;
-			} else {
-				pixelStates = pixelStates.slice(1)
-				pixelStates.push(changedPixels)
-			}
-			changedPixels = {}
-			console.log(pixelStates)
-			currentPixelState = pixelStates.length;
-		}
+		AddStoredPixelStep();
 	}
 	var MouseStateDown = (e)=>{
 		e.preventDefault();
@@ -425,14 +520,24 @@ document.addEventListener("DOMContentLoaded",()=>{
 			while (table.getElementsByTagName("tr").length>e.target.value) {
 				//REMOVE X amount of rows.
 				var lastrow = table.getElementsByTagName("tr")[table.getElementsByTagName("tr").length-1]
+				//For all cells, store their color values.
+				for (var cell of lastrow.getElementsByTagName("th")) {
+					var coords = getCoordinates(cell)
+					changedPixels[cell.id]=cell.style.background
+				}
 				lastrow.remove();
 			}
 		}
+		changedPixels["newsize"]=e.target.value;
+		changedPixels["oldsize"]=ROWS
+		changedPixels["STEPTYPE"]="RESIZEROWS"
 		ROWS = e.target.value;
+		AddStoredPixelStep();
 	}
 	
 	var ModifyCols = (e)=>{
 		var table = document.getElementsByTagName("table")[0];
+		changedPixels["oldsize"]=COLS
 		if (e.target.value>COLS) {
 			//console.log("In here.")
 			while (e.target.value>COLS) {
@@ -451,10 +556,44 @@ document.addEventListener("DOMContentLoaded",()=>{
 				for (var i=0;i<table.getElementsByTagName("tr").length;i++) {
 					var row = table.getElementsByTagName("tr")[i];
 					var col = row.getElementsByTagName("th")[row.getElementsByTagName("th").length-1]
+					var coords = getCoordinates(col)
+					changedPixels[col.id]=col.style.background
 					col.remove();
+					//For all cells, store their color values.
 				}
 				COLS--;
 			}
+		}
+		changedPixels["newsize"]=e.target.value;
+		changedPixels["STEPTYPE"]="RESIZECOLS"
+		COLS = e.target.value;
+		AddStoredPixelStep();
+	}
+	
+	var AddStoredPixelStep = ()=>{
+		if ("STEPTYPE" in changedPixels) {
+			//Add changedPixels to the current pixelState.
+			if (currentPixelState!==-1 && currentPixelState!==pixelStates.length) {
+				//Delete everything after this.
+				if (currentPixelState===0) {
+					pixelStates = [];
+				} else {
+					pixelStates = pixelStates.slice(0,currentPixelState)
+				}
+				redoButton.disabled = true;
+			}
+			
+			if (pixelStates.length<20) {
+				pixelStates.push(changedPixels);
+				undoButton.disabled = false;
+				redoButton.disabled = true;
+			} else {
+				pixelStates = pixelStates.slice(1)
+				pixelStates.push(changedPixels)
+			}
+			changedPixels = {}
+			//console.log(pixelStates)
+			currentPixelState = pixelStates.length;
 		}
 	}
 	
@@ -528,7 +667,6 @@ document.addEventListener("DOMContentLoaded",()=>{
 		var rowsLabel = document.createElement("label")
 		rowsLabel.innerHTML = "Rows"
 		rowsLabel.classList.add("tinylabel")
-		var rowsControl = document.createElement("input")
 		rowsControl.type = "number"
 		rowsControl.classList.add("inline")
 		rowsControl.classList.add("small")
@@ -540,7 +678,6 @@ document.addEventListener("DOMContentLoaded",()=>{
 		var colsLabel = document.createElement("label")
 		colsLabel.innerHTML = "Cols"
 		colsLabel.classList.add("tinylabel")
-		var colsControl = document.createElement("input")
 		colsControl.type = "number"
 		colsControl.classList.add("inline")
 		colsControl.classList.add("small")
