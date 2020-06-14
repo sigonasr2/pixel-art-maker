@@ -34,6 +34,14 @@ th{
 	margin: 0px 2px 0px 2px;
 	background-color: #FF9999;
 }
+.undobutton{
+	margin: 0px 2px 0px 2px;
+	background-color: #99FF99;
+}
+.redobutton{
+	margin: 0px 2px 0px 2px;
+	background-color: #FFFF99;
+}
 .console{
 	font-style: strong;
 	margin-left: 4px;

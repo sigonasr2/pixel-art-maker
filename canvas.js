@@ -8,7 +8,20 @@ var customColorToolbar=false;
 var fillTool = false;
 var floodFillInProgress=0;
 
+var changedPixels = {}; //pixel data for all changed pixels in this step.
+/*
+STEPTYPE: 
+ADD //Pixel was added. Remove all pixels in this object.
+	//Each pixel will have an old_pos_X_Y indicating their old color. Do the reverse to undo. The pixel list itself will be in "PIXELS": X,Y,X2,Y2,X3,Y3, etc.
+FILL //Fill was done. A color is provided by "backcolor" and a pixel containing the click and source color. To undo it, fill with the backcolor instead of the source color.
+*/
+
+var pixelStates = []; //Last 20 pixel states stored here.
+var currentPixelState = -1; //Which pixel state we're on. Max out at 20.
+
 document.addEventListener("DOMContentLoaded",()=>{
+	var undoButton = document.createElement("button")
+	var redoButton = document.createElement("button")
 	
 	class Coordinate{
 		constructor(box) {
@@ -24,6 +37,11 @@ document.addEventListener("DOMContentLoaded",()=>{
 		}
 	}
 	
+	//Returns a coordinate class.
+	var getCoordinates = (box)=>{
+		return new Coordinate(box);
+	}
+	
 	function insertAfter(newNode, existingNode) {
     existingNode.parentNode.insertBefore(newNode, existingNode.nextSibling);
 	}
@@ -35,6 +53,63 @@ document.addEventListener("DOMContentLoaded",()=>{
 		var rawColors = rgbvalue.replace("rgb(","").replace(")","").split(",");
 	  return "#" + componentToHex(Number(rawColors[0])) + componentToHex(Number(rawColors[1])) + componentToHex(Number(rawColors[2]));
 	}
+	
+	function Undo() {
+		//Execute the reverse.
+		var state = pixelStates[currentPixelState];
+		console.log("Undo "+JSON.stringify(state))
+		switch (state["STEPTYPE"]) {
+			case "ADD":{
+				//Take each pixel and color it its previous color.
+				var pixels = state["PIXELS"].split(",")
+				for (var i=0;i<pixels.length;i+=2) {
+					var pixelX = pixels[i];
+					var pixelY = pixels[i+1];
+					var oldColor = state["old_pos_"+pixelX+"_"+pixelY]
+					var cell = document.getElementById("pos_"+pixelX+"_"+pixelY)
+					cell.style.background = oldColor;
+				}
+			}break;
+			case "FILL":{
+				floodFill(state["PIXELX"],state["PIXELY"],document.getElementById("pos_"+state["PIXELX"]+"_"+state["PIXELY"]).style.background,state["backcolor"])
+			}break;
+		}
+		redoButton.disabled = false;
+		undoButton.disabled = true;
+		if (currentPixelState>0) {
+			currentPixelState--;
+			undoButton.disabled = false;
+		}
+	}
+	
+	function Redo() {
+		//Execute the re-reverse.
+		var state = pixelStates[currentPixelState];
+		console.log("Redo "+JSON.stringify(state))
+		switch (state["STEPTYPE"]) {
+			case "ADD":{
+				//Take each pixel and color it its previous color.
+				var pixels = state["PIXELS"].split(",")
+				for (var i=0;i<pixels.length;i+=2) {
+					var pixelX = pixels[i];
+					var pixelY = pixels[i+1];
+					var newColor = state["pos_"+pixelX+"_"+pixelY]
+					var cell = document.getElementById("pos_"+pixelX+"_"+pixelY)
+					cell.style.background = newColor;
+				}
+			}break;
+			case "FILL":{
+				floodFill(state["PIXELX"],state["PIXELY"],document.getElementById("pos_"+state["PIXELX"]+"_"+state["PIXELY"]).style.background,state["newcolor"])
+			}break;
+		}
+		redoButton.disabled = true;
+		undoButton.disabled = false;
+		if (currentPixelState<pixelStates.length-1) {
+			currentPixelState++;
+			redoButton.disabled = false;
+		}
+	}
+	
 	var canvas = document.getElementsByClassName("canvas")[0];
 	var toolbar = document.getElementsByClassName("toolbar")[0];
 	
@@ -52,11 +127,23 @@ document.addEventListener("DOMContentLoaded",()=>{
 	var MouseListener = (e)=>{
 		e.preventDefault();
 		if (!fillTool) {
-			if (mouseState>=0) {
-				if (mouseState<2 && e.target.tagName==="TH") {
-					e.target.style.background=selectedColor;
-				} else {
-					e.target.style.background="white";
+			if (e.target.tagName==="TH") {
+				if (mouseState>=0) {
+					var mycoords = getCoordinates(e.target)
+					if ("PIXELS" in changedPixels) {
+						changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+					} else {
+						changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+					}
+					changedPixels["old_"+e.target.id]=e.target.style.background;
+					if (mouseState<2) {
+						e.target.style.background=selectedColor;
+						changedPixels[e.target.id]=selectedColor;
+					} else {
+						e.target.style.background="white";
+						changedPixels[e.target.id]="white";
+					}
+					changedPixels["STEPTYPE"]="ADD"
 				}
 			}
 		}
@@ -71,20 +158,60 @@ document.addEventListener("DOMContentLoaded",()=>{
 			if (e.target.tagName==="TH") {
 				var coords = getCoordinates(e.target)
 				floodFill(coords.x,coords.y,e.target.style.background,selectedColor)
+				changedPixels["STEPTYPE"]="FILL"
+				changedPixels["backcolor"]=e.target.style.background
+				changedPixels["newcolor"]=selectedColor
+				changedPixels["PIXELX"]=coords.x
+				changedPixels["PIXELY"]=coords.y
 			}
 		}
 		toolbar.style.visibility = "visible";
+		//console.log(changedPixels);
+		if ("STEPTYPE" in changedPixels) {
+			//Add changedPixels to the current pixelState.
+			if (currentPixelState!==-1 && currentPixelState!==pixelStates.length-1) {
+				//Delete everything after this.
+				if (currentPixelState===0) {
+					pixelStates = [];
+				} else {
+					pixelStates = pixelStates.slice(0,currentPixelState+1)
+				}
+				redoButton.disabled = true;
+			}
+			
+			if (pixelStates.length<20) {
+				pixelStates.push(changedPixels);
+				undoButton.disabled = false;
+				redoButton.disabled = true;
+			} else {
+				pixelStates = pixelStates.slice(1)
+				pixelStates.push(changedPixels)
+			}
+			changedPixels = {}
+			console.log(pixelStates)
+			currentPixelState = pixelStates.length-1;
+		}
 	}
 	var MouseStateDown = (e)=>{
 		e.preventDefault();
 		mouseState = e.button;
 		if (!fillTool) {
 			if (e.target.tagName==="TH") {
+				var mycoords = getCoordinates(e.target)
+				if ("PIXELS" in changedPixels) {
+					changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+				} else {
+					changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+				}
+				changedPixels["old_"+e.target.id]=e.target.style.background;
 				if (e.button===0) {
 					e.target.style.background=selectedColor;
+					changedPixels[e.target.id]=selectedColor;
 				} else {
 					e.target.style.background="white";
+					changedPixels[e.target.id]="white";
 				}
+				changedPixels["STEPTYPE"]="ADD"
 			}
 		}
 		toolbar.style.visibility = "hidden";
@@ -282,7 +409,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 		finalData["ROWS"]=ROWS;
 		finalData["COLS"]=COLS;
 		finalData["CUSTOMCOLOR"]=document.getElementsByTagName("img")[0].style.background;
-		//console.log(JSON.stringify(finalData))
+		console.log(JSON.stringify(finalData))
 		localStorage.setItem("save_pixelart",JSON.stringify(finalData))
 		var consoleText = document.createElement("span")
 		consoleText.innerHTML = "Saved!"
@@ -331,6 +458,18 @@ document.addEventListener("DOMContentLoaded",()=>{
 		saveButton.addEventListener("click",SaveData)
 		toolbar.appendChild(loadButton);
 		toolbar.appendChild(saveButton);
+		undoButton.type = "button"
+		undoButton.innerText = "Undo"
+		undoButton.classList.add("undobutton")
+		undoButton.disabled = true
+		undoButton.addEventListener("click",Undo)
+		redoButton.type = "button"
+		redoButton.innerText = "Redo"
+		redoButton.classList.add("redobutton")
+		redoButton.addEventListener("click",Redo)
+		redoButton.disabled = true
+		toolbar.appendChild(undoButton);
+		toolbar.appendChild(redoButton);
 		var toggleGridButton = document.createElement("img");
 		toggleGridButton.src = "gridtoggle.png";
 		toggleGridButton.classList.add("tinybutton");
@@ -361,53 +500,48 @@ document.addEventListener("DOMContentLoaded",()=>{
 		toolbar.appendChild(fillToolButton);
 	}
 	
-	//Returns a coordinate class.
-	var getCoordinates = (box)=>{
-		return new Coordinate(box);
-	}
-	
-	var floodFill = (startx,starty,baseColor,newColor)=>{
-		console.log("Flood fill at "+startx+","+starty)
+	var floodFill = (startx,starty,baseColor,newColor,force=false)=>{
+		//console.log("Flood fill at "+startx+","+starty)
 		//Start a flood fill in 4 cardinations directions and the current spot.
 		//Set the base color to what the dot currently is. Then all around this spot, fill in any dots that are also this color. Don't spread the dot if there's not a color of that type.
-		floodFillInProgress++;
+		if (!force) {if (!force) {floodFillInProgress++;}}
 		if (baseColor===newColor) {
 			floodFillInProgress--;
 			return
 		}
 		startx = Number(startx)
 		starty = Number(starty)
-		floodFillInProgress++;
+		if (!force) {floodFillInProgress++;}
 		setTimeout(()=>{if (document.getElementById("pos_"+(startx)+"_"+(starty)).style.background===baseColor) {
 			document.getElementById("pos_"+(startx)+"_"+(starty)).style.background = newColor
-			floodFill(startx,starty,baseColor,newColor)
+			floodFill(startx,starty,baseColor,newColor,force)
 		}
-		floodFillInProgress--;},0)
-		floodFillInProgress++;
+		if (!force) {floodFillInProgress--;}},0)
+		if (!force) {floodFillInProgress++;}
 		setTimeout(()=>{if (startx+1 < COLS && document.getElementById("pos_"+(startx+1)+"_"+(starty+0)).style.background===baseColor) {
 			document.getElementById("pos_"+(startx+1)+"_"+(starty+0)).style.background = newColor
-			floodFill(startx+1,starty,baseColor,newColor)
+			floodFill(startx+1,starty,baseColor,newColor,force)
 		}
-		floodFillInProgress--;},0)
-		floodFillInProgress++;
+		if (!force) {floodFillInProgress--;}},0)
+		if (!force) {floodFillInProgress++;}
 		setTimeout(()=>{if (startx-1 >= 0 && document.getElementById("pos_"+(startx-1)+"_"+(starty+0)).style.background===baseColor) {
 			document.getElementById("pos_"+(startx-1)+"_"+(starty+0)).style.background = newColor
-			floodFill(startx-1,starty,baseColor,newColor)
+			floodFill(startx-1,starty,baseColor,newColor,force)
 		}
-		floodFillInProgress--;},0)
-		floodFillInProgress++;
+		if (!force) {floodFillInProgress--;}},0)
+		if (!force) {floodFillInProgress++;}
 		setTimeout(()=>{if (starty+1 < ROWS && document.getElementById("pos_"+(startx)+"_"+(starty+1)).style.background===baseColor) {
 			document.getElementById("pos_"+(startx)+"_"+(starty+1)).style.background = newColor
-			floodFill(startx,starty+1,baseColor,newColor)
+			floodFill(startx,starty+1,baseColor,newColor,force)
 		}
-		floodFillInProgress--;},0)
-		floodFillInProgress++;
+		if (!force) {floodFillInProgress--;}},0)
+		if (!force) {floodFillInProgress++;}
 		setTimeout(()=>{if (starty-1 >= 0 && document.getElementById("pos_"+(startx)+"_"+(starty-1)).style.background===baseColor) {
 			document.getElementById("pos_"+(startx)+"_"+(starty-1)).style.background = newColor
-			floodFill(startx,starty-1,baseColor,newColor)
+			floodFill(startx,starty-1,baseColor,newColor,force)
 		}
-		floodFillInProgress--;},0)
-		floodFillInProgress--;
+		if (!force) {floodFillInProgress--;}},0)
+		if (!force) {floodFillInProgress--;}
 	}
 	
 	generateTable(ROWS,COLS);
