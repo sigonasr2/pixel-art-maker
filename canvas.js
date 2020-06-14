@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 		//console.log(changedPixels);
 		if ("STEPTYPE" in changedPixels) {
 			//Add changedPixels to the current pixelState.
-			if (currentPixelState!==-1 && currentPixelState!==pixelStates.length-1) {
+			if (currentPixelState!==-1 && currentPixelState!==pixelStates.length) {
 				//Delete everything after this.
 				if (currentPixelState===0) {
 					pixelStates = [];
