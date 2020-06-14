@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 	function Undo() {
 		//Execute the reverse.
 		var state = pixelStates[currentPixelState];
-		console.log("Undo "+JSON.stringify(state))
+		//console.log("Undo "+JSON.stringify(state))
 		switch (state["STEPTYPE"]) {
 			case "ADD":{
 				//Take each pixel and color it its previous color.
@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 	function Redo() {
 		//Execute the re-reverse.
 		var state = pixelStates[currentPixelState];
-		console.log("Redo "+JSON.stringify(state))
+		//console.log("Redo "+JSON.stringify(state))
 		switch (state["STEPTYPE"]) {
 			case "ADD":{
 				//Take each pixel and color it its previous color.
@@ -395,6 +395,11 @@ document.addEventListener("DOMContentLoaded",()=>{
 			var consoleText = document.getElementsByClassName("console")[0];
 			consoleText.remove();
 		},2000)
+		
+		undoButton.disabled=true;
+		redoButton.disabled=true;
+		pixelStates = []
+		currentPixelState = -1;
 	}
 	
 	var SaveData = ()=>{
