@@ -6,7 +6,6 @@ var ROWS = 30;
 var COLS = 30;
 var customColorToolbar=false;
 var fillTool = false;
-var floodFillInProgress=0;
 
 var changedPixels = {}; //pixel data for all changed pixels in this step.
 /*
@@ -56,7 +55,8 @@ document.addEventListener("DOMContentLoaded",()=>{
 	
 	function Undo() {
 		//Execute the reverse.
-		var state = pixelStates[currentPixelState];
+		var state = pixelStates[--currentPixelState];
+		console.log("Undo "+currentPixelState)
 		//console.log("Undo "+JSON.stringify(state))
 		switch (state["STEPTYPE"]) {
 			case "ADD":{
@@ -77,14 +77,15 @@ document.addEventListener("DOMContentLoaded",()=>{
 		redoButton.disabled = false;
 		undoButton.disabled = true;
 		if (currentPixelState>0) {
-			currentPixelState--;
+			//currentPixelState--;
 			undoButton.disabled = false;
 		}
 	}
 	
 	function Redo() {
 		//Execute the re-reverse.
-		var state = pixelStates[currentPixelState];
+		console.log("Redo "+currentPixelState)
+		var state = pixelStates[currentPixelState++];
 		//console.log("Redo "+JSON.stringify(state))
 		switch (state["STEPTYPE"]) {
 			case "ADD":{
@@ -104,8 +105,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 		}
 		redoButton.disabled = true;
 		undoButton.disabled = false;
-		if (currentPixelState<pixelStates.length-1) {
-			currentPixelState++;
+		if (currentPixelState<pixelStates.length) {
 			redoButton.disabled = false;
 		}
 	}
@@ -156,15 +156,15 @@ document.addEventListener("DOMContentLoaded",()=>{
 	var MouseStateUp = (e)=>{
 		e.preventDefault();
 		mouseState = -1;
-		if (fillTool && floodFillInProgress===0) {
+		if (fillTool) {
 			if (e.target.tagName==="TH") {
 				var coords = getCoordinates(e.target)
 				floodFill(coords.x,coords.y,e.target.style.background,selectedColor)
-				changedPixels["STEPTYPE"]="FILL"
+				/*changedPixels["STEPTYPE"]="FILL"
 				changedPixels["backcolor"]=e.target.style.background
 				changedPixels["newcolor"]=selectedColor
 				changedPixels["PIXELX"]=coords.x
-				changedPixels["PIXELY"]=coords.y
+				changedPixels["PIXELY"]=coords.y*/
 			}
 		}
 		toolbar.style.visibility = "visible";
@@ -191,7 +191,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 			}
 			changedPixels = {}
 			console.log(pixelStates)
-			currentPixelState = pixelStates.length-1;
+			currentPixelState = pixelStates.length;
 		}
 	}
 	var MouseStateDown = (e)=>{
@@ -513,44 +513,91 @@ document.addEventListener("DOMContentLoaded",()=>{
 		//console.log("Flood fill at "+startx+","+starty)
 		//Start a flood fill in 4 cardinations directions and the current spot.
 		//Set the base color to what the dot currently is. Then all around this spot, fill in any dots that are also this color. Don't spread the dot if there's not a color of that type.
-		if (!force) {if (!force) {floodFillInProgress++;}}
 		if (baseColor===newColor) {
-			floodFillInProgress--;
 			return
 		}
 		startx = Number(startx)
 		starty = Number(starty)
-		if (!force) {floodFillInProgress++;}
-		setTimeout(()=>{if (document.getElementById("pos_"+(startx)+"_"+(starty)).style.background===baseColor) {
-			document.getElementById("pos_"+(startx)+"_"+(starty)).style.background = newColor
+		if (document.getElementById("pos_"+(startx)+"_"+(starty)).style.background===baseColor) {
+			var target = document.getElementById("pos_"+(startx)+"_"+(starty));
+			if (!(target.id in changedPixels)) {
+				var mycoords = getCoordinates(target)
+				if ("PIXELS" in changedPixels) {
+					changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+				} else {
+					changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+				}
+				changedPixels["old_"+target.id]=target.style.background;
+				changedPixels[target.id]=newColor
+				changedPixels["STEPTYPE"]="ADD"
+			}
+			target.style.background = newColor
 			floodFill(startx,starty,baseColor,newColor,force)
 		}
-		if (!force) {floodFillInProgress--;}},0)
-		if (!force) {floodFillInProgress++;}
-		setTimeout(()=>{if (startx+1 < COLS && document.getElementById("pos_"+(startx+1)+"_"+(starty+0)).style.background===baseColor) {
-			document.getElementById("pos_"+(startx+1)+"_"+(starty+0)).style.background = newColor
+		if (startx+1 < COLS && document.getElementById("pos_"+(startx+1)+"_"+(starty+0)).style.background===baseColor) {
+			var target = document.getElementById("pos_"+(startx+1)+"_"+(starty));
+			if (!(target.id in changedPixels)) {
+				var mycoords = getCoordinates(target)
+				if ("PIXELS" in changedPixels) {
+					changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+				} else {
+					changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+				}
+				changedPixels["old_"+target.id]=target.style.background;
+				changedPixels[target.id]=newColor
+				changedPixels["STEPTYPE"]="ADD"
+			}
+			target.style.background = newColor
 			floodFill(startx+1,starty,baseColor,newColor,force)
 		}
-		if (!force) {floodFillInProgress--;}},0)
-		if (!force) {floodFillInProgress++;}
-		setTimeout(()=>{if (startx-1 >= 0 && document.getElementById("pos_"+(startx-1)+"_"+(starty+0)).style.background===baseColor) {
-			document.getElementById("pos_"+(startx-1)+"_"+(starty+0)).style.background = newColor
+		if (startx-1 >= 0 && document.getElementById("pos_"+(startx-1)+"_"+(starty+0)).style.background===baseColor) {
+			var target = document.getElementById("pos_"+(startx-1)+"_"+(starty));
+			if (!(target.id in changedPixels)) {
+				var mycoords = getCoordinates(target)
+				if ("PIXELS" in changedPixels) {
+					changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+				} else {
+					changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+				}
+				changedPixels["old_"+target.id]=target.style.background;
+				changedPixels[target.id]=newColor
+				changedPixels["STEPTYPE"]="ADD"
+			}
+			target.style.background = newColor
 			floodFill(startx-1,starty,baseColor,newColor,force)
 		}
-		if (!force) {floodFillInProgress--;}},0)
-		if (!force) {floodFillInProgress++;}
-		setTimeout(()=>{if (starty+1 < ROWS && document.getElementById("pos_"+(startx)+"_"+(starty+1)).style.background===baseColor) {
-			document.getElementById("pos_"+(startx)+"_"+(starty+1)).style.background = newColor
+		if (starty+1 < ROWS && document.getElementById("pos_"+(startx)+"_"+(starty+1)).style.background===baseColor) {
+			var target = document.getElementById("pos_"+(startx)+"_"+(starty+1));
+			if (!(target.id in changedPixels)) {
+				var mycoords = getCoordinates(target)
+				if ("PIXELS" in changedPixels) {
+					changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+				} else {
+					changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+				}
+				changedPixels["old_"+target.id]=target.style.background;
+				changedPixels[target.id]=newColor
+				changedPixels["STEPTYPE"]="ADD"
+			}
+			target.style.background = newColor
 			floodFill(startx,starty+1,baseColor,newColor,force)
 		}
-		if (!force) {floodFillInProgress--;}},0)
-		if (!force) {floodFillInProgress++;}
-		setTimeout(()=>{if (starty-1 >= 0 && document.getElementById("pos_"+(startx)+"_"+(starty-1)).style.background===baseColor) {
-			document.getElementById("pos_"+(startx)+"_"+(starty-1)).style.background = newColor
+		if (starty-1 >= 0 && document.getElementById("pos_"+(startx)+"_"+(starty-1)).style.background===baseColor) {
+			var target = document.getElementById("pos_"+(startx)+"_"+(starty-1));
+			if (!(target.id in changedPixels)) {
+				var mycoords = getCoordinates(target)
+				if ("PIXELS" in changedPixels) {
+					changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+				} else {
+					changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+				}
+				changedPixels["old_"+target.id]=target.style.background;
+				changedPixels[target.id]=newColor
+				changedPixels["STEPTYPE"]="ADD"
+			}
+			target.style.background = newColor
 			floodFill(startx,starty-1,baseColor,newColor,force)
 		}
-		if (!force) {floodFillInProgress--;}},0)
-		if (!force) {floodFillInProgress--;}
 	}
 	
 	generateTable(ROWS,COLS);
