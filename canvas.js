@@ -18,6 +18,8 @@ FILL //Fill was done. A color is provided by "backcolor" and a pixel containing 
 var pixelStates = []; //Last 20 pixel states stored here.
 var currentPixelState = -1; //Which pixel state we're on. Max out at 20.
 
+var lastDrawPoint = null;
+
 document.addEventListener("DOMContentLoaded",()=>{
 	var undoButton = document.createElement("button")
 	var redoButton = document.createElement("button")
@@ -30,6 +32,12 @@ document.addEventListener("DOMContentLoaded",()=>{
 		}
 	}
 	class PixelCoordinate extends Coordinate{
+		constructor(x,y) {
+			this.x = x;
+			this.y = y;
+		}
+	}
+	class Point{
 		constructor(x,y) {
 			this.x = x;
 			this.y = y;
@@ -130,21 +138,106 @@ document.addEventListener("DOMContentLoaded",()=>{
 			if (e.target.tagName==="TH") {
 				if (mouseState>=0) {
 					var mycoords = getCoordinates(e.target)
-					if (!(e.target.id in changedPixels)) {
-						if ("PIXELS" in changedPixels) {
-							changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
-						} else {
-							changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+					if (lastDrawPoint===null) {
+						lastDrawPoint = new Point(mycoords.x,mycoords.y);
+						if (!(e.target.id in changedPixels)) {
+							if ("PIXELS" in changedPixels) {
+								changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+							} else {
+								changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+							}
+							changedPixels["old_"+e.target.id]=e.target.style.background;
+							if (mouseState<2) {
+								e.target.style.background=selectedColor;
+								changedPixels[e.target.id]=selectedColor;
+							} else {
+								e.target.style.background="white";
+								changedPixels[e.target.id]="white";
+							}
+							changedPixels["STEPTYPE"]="ADD"
 						}
-						changedPixels["old_"+e.target.id]=e.target.style.background;
-						if (mouseState<2) {
-							e.target.style.background=selectedColor;
-							changedPixels[e.target.id]=selectedColor;
+					} else {
+						//SMOOTH DRAWING
+						//Draw pixels for each point in
+						//between both positions. That
+						//way there's no skipped points.
+						var slopeX = mycoords.x - lastDrawPoint.x
+						var slopeY = mycoords.y - lastDrawPoint.y
+						//Whichever is larger is the one
+						//we increment by 1 pixel each turn.
+						if (Math.abs(slopeY)>Math.abs(slopeX)) {
+							//Y increases by 1.
+							var Xincr = slopeX/Math.abs(slopeY);
+							var Yincr = Math.sign(slopeY)*1;
+							var currX = Number(lastDrawPoint.x)
+							var currY = Number(lastDrawPoint.y)
+							var iterations=0;
+							while (Math.floor(currY)!==Math.floor(mycoords.y)) {
+								currY+=Yincr;
+								currX+=Xincr;
+								if (iterations>=1) {
+									console.log("X:"+currX+","+currY+"/"+lastDrawPoint.x+","+lastDrawPoint.y+"/"+mycoords.x+","+mycoords.y)
+								}
+								var target = document.getElementById("pos_"+Math.ceil(currX)+"_"+currY);
+								if (!(target.id in changedPixels)) {
+									if ("PIXELS" in changedPixels) {
+										changedPixels["PIXELS"]+=","+Math.ceil(currX)+","+currY
+									} else {
+										changedPixels["PIXELS"]=Math.ceil(currX)+","+currY
+									}
+									changedPixels["old_"+target.id]=target.style.background;
+									if (mouseState<2) {
+										target.style.background=selectedColor;
+										changedPixels[target.id]=selectedColor;
+									} else {
+										target.style.background="white";
+										changedPixels[target.id]="white";
+									}
+									changedPixels["STEPTYPE"]="ADD"
+								}
+								if (currX>COLS || currY>ROWS || currX<0 || currY<0) {
+									new Error("Rip")
+									break;
+								}
+								iterations++;
+							}
 						} else {
-							e.target.style.background="white";
-							changedPixels[e.target.id]="white";
+							var Xincr = Math.sign(slopeX)*1;
+							var Yincr = slopeY/Math.abs(slopeX);
+							var currX = Number(lastDrawPoint.x)
+							var currY = Number(lastDrawPoint.y)
+							var iterations=0;
+							while (Math.floor(currX)!==Math.floor(mycoords.x)) {
+								currY+=Yincr;
+								currX+=Xincr;
+								if (iterations>=1) {
+									console.log("Y:"+currX+","+currY+"/"+lastDrawPoint.x+","+lastDrawPoint.y+"/"+mycoords.x+","+mycoords.y)
+								}
+								var target = document.getElementById("pos_"+currX+"_"+Math.ceil(currY));
+								if (!(target.id in changedPixels)) {
+									if ("PIXELS" in changedPixels) {
+										changedPixels["PIXELS"]+=","+currX+","+Math.ceil(currY)
+									} else {
+										changedPixels["PIXELS"]=currX+","+Math.ceil(currY)
+									}
+									changedPixels["old_"+target.id]=target.style.background;
+									if (mouseState<2) {
+										target.style.background=selectedColor;
+										changedPixels[target.id]=selectedColor;
+									} else {
+										target.style.background="white";
+										changedPixels[target.id]="white";
+									}
+									changedPixels["STEPTYPE"]="ADD"
+								}
+								iterations++;
+								if (currX>COLS || currY>ROWS || currX<0 || currY<0) {
+									new Error("Rip")
+									break;
+								}
+							}
 						}
-						changedPixels["STEPTYPE"]="ADD"
+						lastDrawPoint = new Point(mycoords.x,mycoords.y);
 					}
 				}
 			}
@@ -197,6 +290,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 	var MouseStateDown = (e)=>{
 		e.preventDefault();
 		mouseState = e.button;
+		lastDrawPoint = null;
 		if (!fillTool) {
 			if (e.target.tagName==="TH") {
 				var mycoords = getCoordinates(e.target)
