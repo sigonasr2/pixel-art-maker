@@ -130,20 +130,22 @@ document.addEventListener("DOMContentLoaded",()=>{
 			if (e.target.tagName==="TH") {
 				if (mouseState>=0) {
 					var mycoords = getCoordinates(e.target)
-					if ("PIXELS" in changedPixels) {
-						changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
-					} else {
-						changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+					if (!(e.target.id in changedPixels)) {
+						if ("PIXELS" in changedPixels) {
+							changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+						} else {
+							changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+						}
+						changedPixels["old_"+e.target.id]=e.target.style.background;
+						if (mouseState<2) {
+							e.target.style.background=selectedColor;
+							changedPixels[e.target.id]=selectedColor;
+						} else {
+							e.target.style.background="white";
+							changedPixels[e.target.id]="white";
+						}
+						changedPixels["STEPTYPE"]="ADD"
 					}
-					changedPixels["old_"+e.target.id]=e.target.style.background;
-					if (mouseState<2) {
-						e.target.style.background=selectedColor;
-						changedPixels[e.target.id]=selectedColor;
-					} else {
-						e.target.style.background="white";
-						changedPixels[e.target.id]="white";
-					}
-					changedPixels["STEPTYPE"]="ADD"
 				}
 			}
 		}
@@ -198,20 +200,22 @@ document.addEventListener("DOMContentLoaded",()=>{
 		if (!fillTool) {
 			if (e.target.tagName==="TH") {
 				var mycoords = getCoordinates(e.target)
-				if ("PIXELS" in changedPixels) {
-					changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
-				} else {
-					changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+				if (!(e.target.id in changedPixels)) {
+					if ("PIXELS" in changedPixels) {
+						changedPixels["PIXELS"]+=","+mycoords.x+","+mycoords.y
+					} else {
+						changedPixels["PIXELS"]=mycoords.x+","+mycoords.y
+					}
+					changedPixels["old_"+e.target.id]=e.target.style.background;
+					if (e.button===0) {
+						e.target.style.background=selectedColor;
+						changedPixels[e.target.id]=selectedColor;
+					} else {
+						e.target.style.background="white";
+						changedPixels[e.target.id]="white";
+					}
+					changedPixels["STEPTYPE"]="ADD"
 				}
-				changedPixels["old_"+e.target.id]=e.target.style.background;
-				if (e.button===0) {
-					e.target.style.background=selectedColor;
-					changedPixels[e.target.id]=selectedColor;
-				} else {
-					e.target.style.background="white";
-					changedPixels[e.target.id]="white";
-				}
-				changedPixels["STEPTYPE"]="ADD"
 			}
 		}
 		toolbar.style.visibility = "hidden";
