@@ -5,7 +5,8 @@ var unselectedColorBorder = "2px black solid";
 var ROWS = 30;
 var COLS = 30;
 var customColorToolbar=false;
-
+var fillTool = false;
+var floodFillInProgress=0;
 
 document.addEventListener("DOMContentLoaded",()=>{
 	
@@ -36,13 +37,27 @@ document.addEventListener("DOMContentLoaded",()=>{
 	}
 	var canvas = document.getElementsByClassName("canvas")[0];
 	var toolbar = document.getElementsByClassName("toolbar")[0];
+	
+	
+
+	document.addEventListener("mousemove",(e)=>{
+		if (toolbar.style.visibility === "hidden" &&
+		e.target.tagName[0]!== "T" &&
+		e.target.tagName[0]!== "D") {
+			toolbar.style.visibility = "visible";
+			mouseState = -1;
+		}
+	})
+	
 	var MouseListener = (e)=>{
 		e.preventDefault();
-		if (mouseState>=0) {
-			if (mouseState<2 && e.target.tagName==="TH") {
-				e.target.style.background=selectedColor;
-			} else {
-				e.target.style.background="white";
+		if (!fillTool) {
+			if (mouseState>=0) {
+				if (mouseState<2 && e.target.tagName==="TH") {
+					e.target.style.background=selectedColor;
+				} else {
+					e.target.style.background="white";
+				}
 			}
 		}
 	}
@@ -52,16 +67,24 @@ document.addEventListener("DOMContentLoaded",()=>{
 	var MouseStateUp = (e)=>{
 		e.preventDefault();
 		mouseState = -1;
+		if (fillTool && floodFillInProgress===0) {
+			if (e.target.tagName==="TH") {
+				var coords = getCoordinates(e.target)
+				floodFill(coords.x,coords.y,e.target.style.background,selectedColor)
+			}
+		}
 		toolbar.style.visibility = "visible";
 	}
 	var MouseStateDown = (e)=>{
 		e.preventDefault();
 		mouseState = e.button;
-		if (e.target.tagName==="TH") {
-			if (e.button===0) {
-				e.target.style.background=selectedColor;
-			} else {
-				e.target.style.background="white";
+		if (!fillTool) {
+			if (e.target.tagName==="TH") {
+				if (e.button===0) {
+					e.target.style.background=selectedColor;
+				} else {
+					e.target.style.background="white";
+				}
 			}
 		}
 		toolbar.style.visibility = "hidden";
@@ -88,7 +111,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 		
 		table.addEventListener("click",MouseClickListener);
 		table.addEventListener("mouseover",MouseListener);
-		table.addEventListener("mouseup",MouseStateUp);
+		document.addEventListener("mouseup",MouseStateUp);
 		table.addEventListener("mousedown",MouseStateDown);
 		
 		canvas.appendChild(table);
@@ -131,7 +154,7 @@ document.addEventListener("DOMContentLoaded",()=>{
 			toolbar.appendChild(dot);
 		}		
 		var customColorContainer = document.createElement("div");
-		customColorContainer.classList.add("toolbar")
+		//customColorContainer.classList.add("toolbar")
 		var dot = document.createElement("img")
 		dot.classList.add("dot")
 		dot.classList.add("inline")
@@ -324,6 +347,18 @@ document.addEventListener("DOMContentLoaded",()=>{
 			}
 		})
 		toolbar.appendChild(toggleGridButton);
+		var fillToolButton = document.createElement("img");
+		fillToolButton.src = "filltool.png"
+		fillToolButton.classList.add("tinybutton")
+		fillToolButton.addEventListener("click",()=>{
+			fillTool = !fillTool
+			if (fillTool) {
+				fillToolButton.style.border = "2px red solid"
+			} else {
+				fillToolButton.style.border = "2px black solid"
+			}
+		})
+		toolbar.appendChild(fillToolButton);
 	}
 	
 	//Returns a coordinate class.
@@ -331,8 +366,48 @@ document.addEventListener("DOMContentLoaded",()=>{
 		return new Coordinate(box);
 	}
 	
-	var floodFill = (startx,starty)=>{
-		
+	var floodFill = (startx,starty,baseColor,newColor)=>{
+		console.log("Flood fill at "+startx+","+starty)
+		//Start a flood fill in 4 cardinations directions and the current spot.
+		//Set the base color to what the dot currently is. Then all around this spot, fill in any dots that are also this color. Don't spread the dot if there's not a color of that type.
+		floodFillInProgress++;
+		if (baseColor===newColor) {
+			floodFillInProgress--;
+			return
+		}
+		startx = Number(startx)
+		starty = Number(starty)
+		floodFillInProgress++;
+		setTimeout(()=>{if (document.getElementById("pos_"+(startx)+"_"+(starty)).style.background===baseColor) {
+			document.getElementById("pos_"+(startx)+"_"+(starty)).style.background = newColor
+			floodFill(startx,starty,baseColor,newColor)
+		}
+		floodFillInProgress--;},0)
+		floodFillInProgress++;
+		setTimeout(()=>{if (startx+1 < COLS && document.getElementById("pos_"+(startx+1)+"_"+(starty+0)).style.background===baseColor) {
+			document.getElementById("pos_"+(startx+1)+"_"+(starty+0)).style.background = newColor
+			floodFill(startx+1,starty,baseColor,newColor)
+		}
+		floodFillInProgress--;},0)
+		floodFillInProgress++;
+		setTimeout(()=>{if (startx-1 >= 0 && document.getElementById("pos_"+(startx-1)+"_"+(starty+0)).style.background===baseColor) {
+			document.getElementById("pos_"+(startx-1)+"_"+(starty+0)).style.background = newColor
+			floodFill(startx-1,starty,baseColor,newColor)
+		}
+		floodFillInProgress--;},0)
+		floodFillInProgress++;
+		setTimeout(()=>{if (starty+1 < ROWS && document.getElementById("pos_"+(startx)+"_"+(starty+1)).style.background===baseColor) {
+			document.getElementById("pos_"+(startx)+"_"+(starty+1)).style.background = newColor
+			floodFill(startx,starty+1,baseColor,newColor)
+		}
+		floodFillInProgress--;},0)
+		floodFillInProgress++;
+		setTimeout(()=>{if (starty-1 >= 0 && document.getElementById("pos_"+(startx)+"_"+(starty-1)).style.background===baseColor) {
+			document.getElementById("pos_"+(startx)+"_"+(starty-1)).style.background = newColor
+			floodFill(startx,starty-1,baseColor,newColor)
+		}
+		floodFillInProgress--;},0)
+		floodFillInProgress--;
 	}
 	
 	generateTable(ROWS,COLS);
