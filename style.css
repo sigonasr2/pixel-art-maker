@@ -23,6 +23,27 @@ th{
 	position:relative;
 	top:-8px;
 }
+.loadbutton{
+	margin: 0px 2px 0px 2px;
+	background-color: #9999FF;
+}
+.savebutton{
+	margin: 0px 2px 0px 2px;
+	background-color: #FF9999;
+}
+.console{
+	font-style: strong;
+	margin-left: 4px;
+}
+.inline{
+	display:inline;
+}
+.small{
+	width:36px;
+}
+.tinylabel{
+	font-size: 12px;
+}
 .dot{
 	height: 25px;
 	width: 25px;
